@@ -1,0 +1,130 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  (SA0016) - sagemaker-purchase-modelling: Notebook instance stack
+Parameters:
+  SolutionPrefix:
+    Type: String
+  ParentStackName:
+    Type: String
+  SolutionName:
+    Type: String
+  ModelDataBucket:
+    Type: String
+  NotebookInstanceExecutionRoleArn:
+    Type: String
+  TestOutputsS3Bucket:
+    Type: String
+  SolutionsS3BucketNamePrefix:
+    Type: String
+
+Mappings:
+  NotebookInstanceType:
+    "af-south-1":
+        Type: ml.t3.medium
+    "ap-east-1":
+        Type: ml.t3.medium
+    "ap-northeast-1":
+        Type: ml.t3.medium
+    "ap-northeast-2":
+        Type: ml.t2.medium
+    "ap-south-1":
+        Type: ml.t2.medium
+    "ap-southeast-1":
+        Type: ml.t3.medium
+    "ap-southeast-2":
+        Type: ml.t3.medium
+    "ca-central-1":
+        Type: ml.t3.medium
+    "eu-central-1":
+        Type: ml.t3.medium
+    "eu-north-1":
+        Type: ml.t3.medium
+    "eu-south-1":
+        Type: ml.t3.medium
+    "eu-west-1":
+        Type: ml.t3.medium
+    "eu-west-2":
+        Type: ml.t3.medium
+    "eu-west-3":
+        Type: ml.t3.medium
+    "me-south-1":
+        Type: ml.t3.medium
+    "sa-east-1":
+        Type: ml.t3.medium
+    "us-east-1":
+        Type: ml.t3.medium
+    "us-east-2":
+        Type: ml.t3.medium
+    "us-west-1":
+        Type: ml.t3.medium
+    "us-west-2":
+        Type: ml.t3.medium
+
+Resources:
+  BasicNotebookInstance:
+    Type: 'AWS::SageMaker::NotebookInstance'
+    Properties:
+      InstanceType: !FindInMap [NotebookInstanceType, !Ref "AWS::Region", Type]
+      NotebookInstanceName: !Sub "${SolutionPrefix}-notebook-instance"
+      RoleArn: !Ref NotebookInstanceExecutionRoleArn
+      LifecycleConfigName: !GetAtt
+        - BasicNotebookInstanceLifecycleConfig
+        - NotebookInstanceLifecycleConfigName
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W1201
+            reason: Solution does not have KMS encryption enabled by default
+
+  BasicNotebookInstanceLifecycleConfig:
+    Type: 'AWS::SageMaker::NotebookInstanceLifecycleConfig'
+    Properties:
+      NotebookInstanceLifecycleConfigName: !Sub "${SolutionPrefix}-nb-lifecycle-config"
+      OnCreate:
+        - Content:
+            Fn::Base64: !Sub |
+                set -e
+                # perform following actions as ec2-user
+                sudo -u ec2-user -i <<EOF
+                cd /home/ec2-user/SageMaker
+                # copy source files
+                aws s3 sync s3://${SolutionsS3BucketNamePrefix}-${AWS::Region}/${SolutionName}/source .
+                # copy test files
+                aws s3 sync s3://${SolutionsS3BucketNamePrefix}-${AWS::Region}/${SolutionName}/test ./test
+                # create stack_outputs.json with stack resources that are required in notebook(s)
+                touch stack_outputs.json
+                echo '{' >> stack_outputs.json
+                echo '  "StackName": "${ParentStackName}",' >> stack_outputs.json
+                echo '  "SolutionPrefix": "${SolutionPrefix}",' >> stack_outputs.json
+                echo '  "AwsAccountId": "${AWS::AccountId}",' >> stack_outputs.json
+                echo '  "AwsRegion": "${AWS::Region}",' >> stack_outputs.json
+                echo '  "IamRole": "${NotebookInstanceExecutionRoleArn}",' >> stack_outputs.json
+                echo '  "ModelDataBucket": "${ModelDataBucket}",' >> stack_outputs.json
+                echo '  "SolutionsS3Bucket": "${SolutionsS3BucketNamePrefix}",' >> stack_outputs.json
+                echo '  "TestOutputsS3Bucket": "${TestOutputsS3Bucket}",' >> stack_outputs.json
+                echo '  "SolutionName": "${SolutionName}",' >> stack_outputs.json
+                echo '  "SagemakerMode": "NotebookInstance"' >> stack_outputs.json
+                echo '}' >> stack_outputs.json
+                echo "stack_outputs.json created:"
+                cat stack_outputs.json
+                # Replace placeholders
+                cd /home/ec2-user/SageMaker/notebooks
+                sed -s -i 's/HUB_1P_IMAGE/conda_python3/g' *.ipynb
+                EOF
+      OnStart:
+        - Content:
+            Fn::Base64: |
+              #!/bin/bash
+              set -e
+              # perform following actions as ec2-user
+              sudo -u ec2-user -i <<'EOF'
+              /home/ec2-user/anaconda3/envs/python3/bin/python /home/ec2-user/SageMaker/env_setup.py --force --log-level DEBUG
+              # Optionally run the solution's notebook if this was an integration test launch
+              cd /home/ec2-user/SageMaker/
+              nohup /home/ec2-user/anaconda3/envs/python3/bin/python ./test/run_notebook.py > ./test/run_notebook.log 2>&1 &
+              echo "OnStart script completed!"
+              EOF
+Outputs:
+  SageMakerNotebook:
+    Description: "Opens the Jupyter notebook to get started with model training"
+    Value: !Sub "https://${SolutionPrefix}-notebook-instance.notebook.${AWS::Region}.sagemaker.aws/notebooks/notebooks/sagemaker_purchase_modelling.ipynb"

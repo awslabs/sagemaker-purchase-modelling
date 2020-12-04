@@ -1,0 +1,178 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  (SA0016) - sagemaker-purchase-modelling: Solution for predicting
+  when customers will make purchases using Amazon SageMaker. Version 1
+Parameters:
+  SolutionPrefix:
+    Type: String
+    Description: |
+      Used to name resources created as part of this stack (and inside nested stacks too).
+      Can be the same as the stack name used by AWS CloudFormation, but this field has extra
+      constraints because it's used to name resources with restrictions (e.g. Amazon S3 bucket
+      names cannot contain capital letters).
+    AllowedPattern: '^sagemaker-soln-pmdl[a-z0-9\-]{1,20}$'
+    ConstraintDescription: |
+      Only allowed to use lowercase letters, hyphens and/or numbers.
+      Should also start with 'sagemaker-soln-fdml-' for permission management.
+    Default: "sagemaker-soln-pmdl-"
+  CreateSageMakerNotebookInstance:
+    Description: Create a SageMaker Notebook Instance as part of the stack?
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+  IamRole:
+    Type: String
+    Default: ""
+    Description: |
+      The ARN of the IAM Role that will be attached to the resources created by this stack to grant them permissions to
+      perform their required functions. If left blank, the template will attempt to create a role for you.
+      That could cause a stack creation error if you don't have privileges to create new roles.
+  StackVersion:
+    Description: |
+      CloudFormation Stack version.
+      Use 'release' version unless you are customizing the
+      CloudFormation templates and solution artifacts.
+    Type: String
+    Default: release
+    AllowedValues:
+      - release
+      - development
+  SolutionName:
+    Description: |
+      Prefix for the solution name. Needs to be Sagemaker-purchase-modelling
+      or begin with  'Sagemaker-purchase-modelling-' followed by a set of letters and hyphens.
+      Used to specify a particular directory on S3, that can correspond to a development branch.
+    Type: String
+    Default: "Sagemaker-purchase-modelling"
+    AllowedPattern: '^Sagemaker-purchase-modelling-?[a-z0-9\-]*$'
+  TestOutputsS3Bucket:
+    Description: |
+      This bucket is used to store output files when the solution is tested. Should be left blank, unless this is an automated launch.
+    Type: String
+    Default: ""
+    AllowedPattern: '^$|^sagemaker-soln-[a-z0-9\-\.]{1,48}$'
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: Solution Configuration
+        Parameters:
+          - SolutionPrefix
+          - CreateSageMakerNotebookInstance
+          - StackVersion
+Mappings:
+  SolutionsS3BucketName:
+    development:
+      Prefix: sagemaker-solutions-devo
+    release:
+      Prefix: sagemaker-solutions-prod
+Conditions:
+  CreateSageMakerNotebookInstance: !Equals [ !Ref CreateSageMakerNotebookInstance, 'true' ]
+  CreateCustomSolutionRole: !Equals [!Ref IamRole, ""]
+Resources:
+  ModelDataBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub ${SolutionPrefix}-${AWS::AccountId}-md
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: >-
+              Configuring logging requires supplying an existing customer S3
+              bucket to store logs
+          - id: W51
+            reason: Default policy works fine
+
+  SolutionAssistantStack:
+    Type: "AWS::CloudFormation::Stack"
+    Properties:
+      TemplateURL: !Sub
+      - "https://${SolutionsS3BucketNamePrefix}-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/${SolutionName}/deployment/solution-assistant/solution-assistant.yaml"
+      - SolutionsS3BucketNamePrefix:
+          Fn::FindInMap: [SolutionsS3BucketName, Ref: StackVersion, Prefix]
+      Parameters:
+        SolutionPrefix: !Ref SolutionPrefix
+        SolutionName: !Ref SolutionName
+        StackName: !Ref AWS::StackName
+        ModelDataBucketName: !Ref ModelDataBucket
+        SolutionsS3BucketName: !Sub
+          - ${SolutionsS3BucketNamePrefix}-${AWS::Region}
+          - SolutionsS3BucketNamePrefix:
+              Fn::FindInMap: [SolutionsS3BucketName, Ref: StackVersion, Prefix]
+        RoleArn: !If [CreateCustomSolutionRole, !GetAtt SageMakerPermissionsStack.Outputs.SageMakerRoleArn, !Ref IamRole]
+
+  SageMakerStack:
+    Type: "AWS::CloudFormation::Stack"
+    Condition: CreateSageMakerNotebookInstance
+    Properties:
+      TemplateURL: !Sub
+      - "https://${SolutionsS3BucketNamePrefix}-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/${SolutionName}/deployment/sagemaker-purchase-modelling-notebook-instance.yaml"
+      - SolutionsS3BucketNamePrefix:
+          Fn::FindInMap: [SolutionsS3BucketName, Ref: StackVersion, Prefix]
+      Parameters:
+        SolutionPrefix: !Ref SolutionPrefix
+        ParentStackName: !Ref AWS::StackName
+        SolutionName: !Ref SolutionName
+        SolutionsS3BucketNamePrefix: !FindInMap [SolutionsS3BucketName, Ref: StackVersion, Prefix]
+        ModelDataBucket: !Ref ModelDataBucket
+        NotebookInstanceExecutionRoleArn: !If [CreateCustomSolutionRole, !GetAtt SageMakerPermissionsStack.Outputs.SageMakerRoleArn, !Ref IamRole]
+        TestOutputsS3Bucket: !Ref TestOutputsS3Bucket
+
+  SageMakerPermissionsStack:
+    Type: "AWS::CloudFormation::Stack"
+    Condition: CreateCustomSolutionRole
+    Properties:
+      TemplateURL: !Sub
+      - "https://${SolutionsS3BucketNamePrefix}-${AWS::Region}.s3.${AWS::Region}.amazonaws.com/${SolutionName}/deployment/sagemaker-purchase-modelling-permissions-stack.yaml"
+      - SolutionsS3BucketNamePrefix:
+          !FindInMap [SolutionsS3BucketName, Ref: StackVersion, Prefix]
+      Parameters:
+        SolutionPrefix: !Ref SolutionPrefix
+        ModelDataBucketName: !Ref ModelDataBucket
+        SolutionsS3BucketName: !Sub
+          - ${SolutionsS3BucketNamePrefix}-${AWS::Region}
+          - SolutionsS3BucketNamePrefix:
+              Fn::FindInMap: [SolutionsS3BucketName, Ref: StackVersion, Prefix]
+        RootStackID: !Ref AWS::StackId
+        TestOutputsS3Bucket: !Ref TestOutputsS3Bucket
+
+Outputs:
+  SageMakerNotebook:
+    Condition: CreateSageMakerNotebookInstance
+    Description: "Opens the Jupyter notebook to get started with model training"
+    Value: !GetAtt SageMakerStack.Outputs.SageMakerNotebook
+  StackName:
+    Value: !Ref AWS::StackName
+  SolutionPrefix:
+    Value: !Ref SolutionPrefix
+  AwsAccountId:
+    Value: !Ref AWS::AccountId
+  AwsRegion:
+    Value: !Ref AWS::Region
+  IamRole:
+    Value: !If [CreateCustomSolutionRole, !GetAtt SageMakerPermissionsStack.Outputs.SageMakerRoleArn, !Ref IamRole]
+  ModelDataBucket:
+    Value: !Ref ModelDataBucket
+  SolutionsS3Bucket:
+    Value: !FindInMap [SolutionsS3BucketName, Ref: StackVersion, Prefix]
+  SagemakerMode:
+    Value: !If
+      - CreateSageMakerNotebookInstance
+      - "NotebookInstance"
+      - "Studio"
+  SolutionName:
+    Value: !Ref SolutionName
+  TestOutputsS3Bucket:
+    Value: !Ref TestOutputsS3Bucket
