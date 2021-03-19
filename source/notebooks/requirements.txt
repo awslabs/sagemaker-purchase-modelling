@@ -39,7 +39,7 @@ packaging==20.4           # via sagemaker
 pandas==1.1.4             # via -r requirements.in, seaborn
 papermill==2.2.0          # via -r requirements.in
 pathspec==0.8.0           # via black
-pillow==8.0.1             # via matplotlib
+pillow==8.1.1             # via matplotlib
 protobuf3-to-dict==0.1.5  # via sagemaker
 protobuf==3.13.0          # via protobuf3-to-dict, sagemaker
 pyasn1==0.4.8             # via rsa
