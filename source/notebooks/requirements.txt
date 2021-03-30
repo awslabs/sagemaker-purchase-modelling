@@ -47,7 +47,7 @@ pyparsing==2.4.7          # via matplotlib, packaging
 pyrsistent==0.17.3        # via jsonschema
 python-dateutil==2.8.1    # via botocore, jupyter-client, matplotlib, pandas
 pytz==2020.4              # via pandas
-pyyaml==5.3.1             # via awscli, papermill
+pyyaml==5.4.0             # via awscli, papermill
 pyzmq==19.0.2             # via jupyter-client
 regex==2020.10.28         # via black
 requests==2.24.0          # via papermill
