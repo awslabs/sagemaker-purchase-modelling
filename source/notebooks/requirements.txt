@@ -51,7 +51,7 @@ pyyaml==5.4.0             # via awscli, papermill
 pyzmq==19.0.2             # via jupyter-client
 regex==2020.10.28         # via black
 requests==2.24.0          # via papermill
-rsa==4.5                  # via awscli
+rsa==4.7                  # via awscli
 s3transfer==0.3.3         # via awscli, boto3
 sagemaker==1.72.0         # via -r requirements.in
 scikit-learn==0.23.2      # via -r requirements.in
