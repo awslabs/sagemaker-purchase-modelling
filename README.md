@@ -13,27 +13,19 @@ and output to detect data problems. This project includes a demonstration of thi
 visits to a fictional website, but can be easily modified to work with custom labelled or unlaballed data
 provided as a relational table in csv format.
 
-## Getting Started for SageMaker Notebook Instances
+## Getting Started
 
-This section applies to launching your own SageMaker notebook instance through CloudFormation. If you're using SageMaker Studio you can just on-click-launch the solution.
+You will need an AWS account to use this solution. Sign up for an account [here](https://aws.amazon.com/).
 
-To get started quickly, use the following quick-launch link to launch a CloudFormation Stack create form and follow the instructions below to deploy the resources in this project.
+To run this JumpStart 1P Solution and have the infrastructure deploy to your AWS account you will need to create an active SageMaker Studio instance (see [Onboard to Amazon SageMaker Studio](https://docs.aws.amazon.com/sagemaker/latest/dg/gs-studio-onboard.html)). When your Studio instance is *Ready*, use the instructions in [SageMaker JumpStart](https://docs.aws.amazon.com/sagemaker/latest/dg/studio-jumpstart.html) to 1-Click Launch the solution.
 
-| Region | Stack |
-| ---- | ---- |
-|US East (N. Virginia) | [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://sagemaker-solutions-prod-us-east-1.s3.us-east-1.amazonaws.com/Sagemaker-purchase-modelling/deployment/sagemaker-purchase-modelling.yaml&stackName=sagemaker-soln-pmdl-awslabs) |
-|US East (Ohio) | [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://us-east-2.console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/create/review?templateURL=https://sagemaker-solutions-prod-us-east-2.s3.us-east-2.us-east-2.amazonaws.com/Sagemaker-purchase-modelling/deployment/sagemaker-purchase-modelling.yaml&stackName=sagemaker-soln-pmdl-awslabs) |
-|US West (Oregon) | [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://sagemaker-solutions-prod-us-west-2.s3.us-west-2.amazonaws.com/Sagemaker-purchase-modelling/deployment/sagemaker-purchase-modelling.yaml&stackName=sagemaker-soln-pmdl-awslabs) |
+The solution artifacts are included in this GitHub repository for reference.
 
+*Note*: Solutions are available in most regions including us-west-2, and us-east-1.
 
-### Additional Instructions
-
-* On the stack creation page, check the box to acknowledge creation of IAM resources, and click **Create Stack**. This should trigger the creation of the CloudFormation stack.
-
-* Once the stack is created, go to the Outputs tab and click on the *SageMakerNotebook* link. This will open up a Jupyter notebook named `sagemaker-purchase-modelling` in a SageMaker Notebook instance where you can run the code. Follow the instructions in the notebook to run the solution. You can use `Cells->Run All` from the Jupyter menu to run all cells, and return to the notebook later after all cells have executed. The total time to run all cells should be around 40 minutes.
+**Caution**: Cloning this GitHub repository and running the code manually could lead to unexpected issues! Use the AWS CloudFormation template. You'll get an Amazon SageMaker Notebook instance that's been correctly setup and configured to access the other resources in the solution.
 
 ## Data
-
 
 The example dataset used in this solution, "Customer propensity to purchase dataset", was released in the public domain by Ben Powis under the [CC0 license](https://creativecommons.org/publicdomain/zero/1.0/), original download source available [here](https://www.kaggle.com/benpowis/customer-propensity-to-purchase-data?select=training_sample.csv).
 
